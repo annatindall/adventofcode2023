@@ -1,3 +1,5 @@
+#![recursion_limit = "512"]
+
 mod day00;
 mod day01;
 mod day02;
