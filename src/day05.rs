@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::ops::Range;
 
 pub fn day05(input_lines: &str) -> (String, String) {
     let mut lines = input_lines.lines();
@@ -9,32 +9,51 @@ pub fn day05(input_lines: &str) -> (String, String) {
     lines.next();
     let mappings = Mappings::create(lines);
     let answer1 = part1(&seeds, &mappings);
-    let answer2 = 0;
+    let answer2 = part2(&seeds, &mappings);
     (format!("{}", answer1), format!("{}", answer2))
 }
 
-fn part1(seeds: &Vec<i64>, mappings: &Mappings) -> i64 {
-    seeds
-        .iter()
-        .map(|seed| mappings.map("seed", *seed, "location"))
-        .min()
-        .unwrap()
+fn part1(seeds: &[i64], mappings: &Mappings) -> i64 {
+    seeds.iter().map(|seed| mappings.map(*seed)).min().unwrap()
 }
 
-struct Mappings(HashMap<String, Map>);
+fn part2(seed_numbers: &[i64], mappings: &Mappings) -> i64 {
+    let mut ranges: Vec<Range<i64>> = Vec::new();
+
+    for i in (0..seed_numbers.len()).step_by(2) {
+        let start = seed_numbers[i];
+        let len = seed_numbers[i + 1];
+        ranges.push(start..(start + len));
+    }
+
+    let mut min_location = 0;
+    loop {
+        if min_location % 1000000 == 0 {
+            println!("Trying location: {}", min_location);
+        }
+        let input = mappings.reverse_map(min_location);
+        if ranges.iter().any(|range| range.contains(&input)) {
+            break;
+        }
+        min_location += 1;
+    }
+    min_location
+}
+
+struct Mappings(Vec<Map>);
 
 impl Mappings {
-    fn create<'a, I>(mut input_lines: I) -> Self
+    fn create<'a, I>(input_lines: I) -> Self
     where
         I: Iterator<Item = &'a str>,
     {
-        let mut mappings = Mappings(HashMap::new());
+        let mut map_vec = Mappings(Vec::new());
         let mut current_map: Option<Map> = None;
 
-        while let Some(line) = input_lines.next() {
+        for line in input_lines {
             if let Some(mut map) = current_map {
-                if line == "" {
-                    mappings.0.insert(map.source.to_owned(), map);
+                if line.is_empty() {
+                    map_vec.0.push(map);
                     current_map = None;
                 } else {
                     // Add a new entry to the current mapping
@@ -50,41 +69,40 @@ impl Mappings {
                 }
             } else {
                 // Start a new mapping
-                let mut map_name_split = line.split_ascii_whitespace().next().unwrap().split('-');
-                let source = map_name_split.next().unwrap();
-                let dest = map_name_split.nth(1).unwrap();
-                current_map = Some(Map::new(source, dest));
+                current_map = Some(Map::new());
             }
         }
         // EOF - end current map
         let map = current_map.unwrap();
-        mappings.0.insert(map.source.to_owned(), map);
-        mappings
+        map_vec.0.push(map);
+        map_vec
     }
 
-    fn map(&self, source_name: &str, source_value: i64, dest_name: &str) -> i64 {
-        let mut current_source = source_name;
-        let mut current_value = source_value;
-        while current_source != dest_name {
-            let next_map = self.0.get(current_source).unwrap();
-            current_value = next_map.map(current_value);
-            current_source = &next_map.dest;
+    fn map(&self, source_value: i64) -> i64 {
+        let mut current = source_value;
+        for map in &self.0 {
+            current = map.map(current)
         }
-        current_value
+        current
+    }
+
+    fn reverse_map(&self, dest_value: i64) -> i64 {
+        let mut current = dest_value;
+        for map in self.0.iter().rev() {
+            current = map.reverse_map(current)
+        }
+        current
     }
 }
 
+#[derive(Clone)]
 struct Map {
-    source: String,
-    dest: String,
     entries: Vec<MapEntry>,
 }
 
 impl Map {
-    fn new(source: &str, dest: &str) -> Self {
+    fn new() -> Self {
         Map {
-            source: String::from(source),
-            dest: String::from(dest),
             entries: Vec::new(),
         }
     }
@@ -96,8 +114,20 @@ impl Map {
             None => input,
         }
     }
+
+    fn reverse_map(&self, output: i64) -> i64 {
+        let correct_map = self
+            .entries
+            .iter()
+            .find(|map| map.has_reverse_mapping_for(output));
+        match correct_map {
+            Some(map) => map.reverse_map(output),
+            None => output,
+        }
+    }
 }
 
+#[derive(Clone)]
 struct MapEntry {
     source_start: i64,
     dest_start: i64,
@@ -120,6 +150,18 @@ impl MapEntry {
     fn shift(&self) -> i64 {
         self.dest_start - self.source_start
     }
+
+    fn has_reverse_mapping_for(&self, dest: i64) -> bool {
+        dest >= self.dest_start && dest < self.dest_start + self.length
+    }
+
+    fn reverse_map(&self, output: i64) -> i64 {
+        if self.has_reverse_mapping_for(output) {
+            output - self.shift()
+        } else {
+            output
+        }
+    }
 }
 
 #[cfg(test)]
@@ -138,7 +180,7 @@ mod tests {
 
     #[test]
     fn check_single_map() {
-        let mut map = Map::new("seed", "soil");
+        let mut map = Map::new();
         map.entries.push(MapEntry {
             dest_start: 50,
             source_start: 98,
