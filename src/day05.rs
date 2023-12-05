@@ -2,7 +2,10 @@ use std::collections::HashMap;
 
 pub fn day05(input_lines: &str) -> (String, String) {
     let mut lines = input_lines.lines();
-    let seeds: Vec<i64> = lines.next().unwrap()[7..].split_ascii_whitespace().map(|n| n.parse::<i64>().unwrap()).collect();
+    let seeds: Vec<i64> = lines.next().unwrap()[7..]
+        .split_ascii_whitespace()
+        .map(|n| n.parse::<i64>().unwrap())
+        .collect();
     lines.next();
     let mappings = Mappings::create(lines);
     let answer1 = part1(&seeds, &mappings);
@@ -11,53 +14,51 @@ pub fn day05(input_lines: &str) -> (String, String) {
 }
 
 fn part1(seeds: &Vec<i64>, mappings: &Mappings) -> i64 {
-    seeds.iter().map(|seed| {
-        mappings.map("seed", *seed, "location")
-    }).min().unwrap()
+    seeds
+        .iter()
+        .map(|seed| mappings.map("seed", *seed, "location"))
+        .min()
+        .unwrap()
 }
 
 struct Mappings(HashMap<String, Map>);
 
 impl Mappings {
     fn create<'a, I>(mut input_lines: I) -> Self
-    where I: Iterator<Item = &'a str>
+    where
+        I: Iterator<Item = &'a str>,
     {
         let mut mappings = Mappings(HashMap::new());
         let mut current_map: Option<Map> = None;
 
         while let Some(line) = input_lines.next() {
-           // Get first char of line
-           if line == "" {
-                // End the current mapping
-                if let Some(map) = current_map { // There's some refactoring here
+            if let Some(mut map) = current_map {
+                if line == "" {
                     mappings.0.insert(map.source.to_owned(), map);
                     current_map = None;
                 } else {
-                    panic!("SOMETHING WENT WRONG");
+                    // Add a new entry to the current mapping
+                    let mut numbers_split = line
+                        .split_ascii_whitespace()
+                        .map(|n| n.parse::<i64>().unwrap());
+                    map.entries.push(MapEntry {
+                        dest_start: numbers_split.next().unwrap(),
+                        source_start: numbers_split.next().unwrap(),
+                        length: numbers_split.next().unwrap(),
+                    });
+                    current_map = Some(map);
                 }
-           } else if let Some(mut map) = current_map {
-                // Add a new entry to the current mapping
-                let mut numbers_split = line.split_ascii_whitespace().map(|n| n.parse::<i64>().unwrap());
-                map.entries.push(MapEntry {
-                    dest_start: numbers_split.next().unwrap(),
-                    source_start: numbers_split.next().unwrap(),
-                    length: numbers_split.next().unwrap()
-                });
-                current_map = Some(map);
-           } else { // current_map.is_none()
+            } else {
                 // Start a new mapping
                 let mut map_name_split = line.split_ascii_whitespace().next().unwrap().split('-');
                 let source = map_name_split.next().unwrap();
                 let dest = map_name_split.nth(1).unwrap();
                 current_map = Some(Map::new(source, dest));
-           }
+            }
         }
         // EOF - end current map
-        if let Some(map) = current_map { // There's some refactoring here
-            mappings.0.insert(map.source.to_owned(), map);
-        } else {
-            panic!("SOMETHING WENT WRONG");
-        }
+        let map = current_map.unwrap();
+        mappings.0.insert(map.source.to_owned(), map);
         mappings
     }
 
@@ -84,26 +85,23 @@ impl Map {
         Map {
             source: String::from(source),
             dest: String::from(dest),
-            entries: Vec::new()
+            entries: Vec::new(),
         }
     }
 
     fn map(&self, input: i64) -> i64 {
-        let correct_map = self.entries.iter().find(|map| {
-            map.has_mapping_for(input)
-        });
+        let correct_map = self.entries.iter().find(|map| map.has_mapping_for(input));
         match correct_map {
             Some(map) => map.map(input),
-            None => input
+            None => input,
         }
     }
 }
 
-
 struct MapEntry {
     source_start: i64,
     dest_start: i64,
-    length: i64
+    length: i64,
 }
 
 impl MapEntry {
@@ -131,7 +129,10 @@ mod tests {
     #[test]
     fn check_seeds_parsing() {
         let input = "seeds: 3429320627 235304036";
-        let seeds: Vec<i64> = input[7..].split_ascii_whitespace().map(|n| n.parse::<i64>().unwrap()).collect();
+        let seeds: Vec<i64> = input[7..]
+            .split_ascii_whitespace()
+            .map(|n| n.parse::<i64>().unwrap())
+            .collect();
         assert_eq!(seeds, vec![3429320627, 235304036])
     }
 
@@ -141,12 +142,12 @@ mod tests {
         map.entries.push(MapEntry {
             dest_start: 50,
             source_start: 98,
-            length: 2
+            length: 2,
         });
         map.entries.push(MapEntry {
             dest_start: 52,
             source_start: 50,
-            length: 48
+            length: 48,
         });
         assert_eq!(map.map(0), 0);
         assert_eq!(map.map(1), 1);
