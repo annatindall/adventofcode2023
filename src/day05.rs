@@ -156,6 +156,9 @@ impl MapEntry {
     }
 
     fn reverse_map(&self, output: i64) -> i64 {
+        // There's a bug here - don't think every output will have
+        // a corresponding input, so should return an Option.
+        // Luckily didn't seem to matter for my puzzle input
         if self.has_reverse_mapping_for(output) {
             output - self.shift()
         } else {
