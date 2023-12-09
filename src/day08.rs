@@ -1,7 +1,7 @@
+use num::Integer;
 use regex::Regex;
 use std::collections::HashMap;
 use std::str::{Chars, Lines};
-use num::Integer;
 
 pub fn day08(input_lines: &str) -> (String, String) {
     let mut lines = input_lines.lines();
@@ -42,7 +42,11 @@ fn part2(directions: Chars<'_>, graph: &DesertGraph) -> u64 {
 
     // With these assumptions, the position where all the 'Z' states line up is the LCM of the cycle lengths
     // For the example above, it's 12
-    let start_states = graph.nodes.keys().filter(|name| name.ends_with('A')).cloned();
+    let start_states = graph
+        .nodes
+        .keys()
+        .filter(|name| name.ends_with('A'))
+        .cloned();
     let mut answer: u64 = 0;
 
     for start in start_states {
